@@ -1,9 +1,20 @@
 import os
 import sys
 from pathlib import Path
+import sys
+from pathlib import Path
 from typing import Dict
 
-import pandas as pd
+try:
+    import pandas as pd
+    PANDAS_AVAILABLE = True
+except ImportError:  # pragma: no cover - optional dependency guard
+    PANDAS_AVAILABLE = False
+
+    class _PandasStub:  # pragma: no cover - typing aid
+        DataFrame = object
+
+    pd = _PandasStub()
 
 # Ensure local src is importable
 ROOT = Path(__file__).resolve().parent
@@ -24,12 +35,16 @@ REPORT_DIR = ROOT / "reports"
 
 
 def load_events(path: Path) -> pd.DataFrame:
+    if not PANDAS_AVAILABLE:
+        raise RuntimeError("pandas is required to load events. Install pandas or use a prepared environment.")
     df = pd.read_csv(path)
     df["event_date"] = pd.to_datetime(df["event_date"]).dt.date
     return df
 
 
 def load_prices(assets) -> Dict[str, pd.DataFrame]:
+    if not PANDAS_AVAILABLE:
+        raise RuntimeError("pandas is required to load prices. Install pandas or supply cached CSV files.")
     prices: Dict[str, pd.DataFrame] = {}
     for asset in assets:
         sym = asset if asset != "MIX" else "BTC"
@@ -49,6 +64,12 @@ def load_prices(assets) -> Dict[str, pd.DataFrame]:
 
 
 def main():
+    if not PANDAS_AVAILABLE:
+        print(
+            "pandas is not installed. Install pandas to run the analysis or use cached CSV outputs.",
+            file=sys.stderr,
+        )
+        return
     events_path = DATA_DIR / "etf_events.csv"
     if not events_path.exists():
         raise SystemExit("Missing data/etf_events.csv. Please create it first.")

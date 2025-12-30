@@ -1,11 +1,23 @@
 import os
 import time
 import datetime as dt
+import json
+import urllib.error
+import urllib.parse
+import urllib.request
 from pathlib import Path
 from typing import List, Tuple
 
-import pandas as pd
-import requests
+try:
+    import pandas as pd
+    PANDAS_AVAILABLE = True
+except ImportError:  # pragma: no cover - optional dependency guard
+    PANDAS_AVAILABLE = False
+
+    class _PandasStub:  # pragma: no cover - typing aid
+        DataFrame = object
+
+    pd = _PandasStub()
 
 
 DEFAULT_STARTS = {
@@ -25,6 +37,13 @@ class CMCAPIError(RuntimeError):
     pass
 
 
+def _require_pandas() -> None:
+    if not PANDAS_AVAILABLE:
+        raise RuntimeError(
+            "pandas is required for CoinMarketCap downloads. Install pandas or use a cached CSV in data/."
+        )
+
+
 def _require_key() -> str:
     key = os.getenv("CMC_API_KEY") or os.getenv("X-CMC_PRO_API_KEY")
     if not key:
@@ -38,28 +57,29 @@ def _request_with_retry(params: dict, headers: dict, retries: int = 5, backoff: 
     last_error: Exception | None = None
     for attempt in range(retries):
         try:
-            resp = requests.get(API_URL, params=params, headers=headers, timeout=60)
-            if resp.status_code == 429:
+            url = f"{API_URL}?{urllib.parse.urlencode(params)}"
+            req = urllib.request.Request(url, headers=headers)
+            with urllib.request.urlopen(req, timeout=60) as resp:  # nosec B310 - trusted host
+                status = resp.getcode()
+                body = resp.read().decode()
+            if status == 429:
                 time.sleep(backoff * (2 ** attempt))
                 continue
-            if resp.status_code >= 500:
+            if status >= 500:
                 time.sleep(backoff * (2 ** attempt))
-                last_error = CMCAPIError(
-                    f"CMC server error {resp.status_code}: {resp.text[:200]}"
-                )
+                last_error = CMCAPIError(f"CMC server error {status}: {body[:200]}")
                 continue
-            if resp.status_code == 401 or resp.status_code == 403:
-                raise CMCAPIError(
-                    "CMC key missing/invalid or plan does not permit this endpoint."
-                )
-            resp.raise_for_status()
-            payload = resp.json()
+            if status in (401, 403):
+                raise CMCAPIError("CMC key missing/invalid or plan does not permit this endpoint.")
+            if status != 200:
+                raise CMCAPIError(f"CMC request failed with status {status}: {body[:200]}")
+            payload = json.loads(body)
             if payload.get("status", {}).get("error_code") not in (0, None):
                 raise CMCAPIError(
                     f"CMC returned error: {payload['status'].get('error_message')}"
                 )
             return payload
-        except requests.RequestException as exc:
+        except (urllib.error.HTTPError, urllib.error.URLError) as exc:
             last_error = exc
             time.sleep(backoff * (2 ** attempt))
     raise CMCAPIError(f"Failed to fetch data after retries: {last_error}")
@@ -76,6 +96,7 @@ def _chunk_ranges(start: dt.date, end: dt.date) -> List[Tuple[dt.date, dt.date]]
 
 
 def _parse_quotes(quotes: List[dict]) -> pd.DataFrame:
+    _require_pandas()
     rows = []
     for q in quotes:
         quote = q.get("quote", {}).get("USD", {})
@@ -100,6 +121,7 @@ def _parse_quotes(quotes: List[dict]) -> pd.DataFrame:
 
 
 def fetch_ohlcv(symbol: str, start: dt.date, end: dt.date) -> pd.DataFrame:
+    _require_pandas()
     key = _require_key()
     headers = {
         "X-CMC_PRO_API_KEY": key,
@@ -127,6 +149,7 @@ def fetch_ohlcv(symbol: str, start: dt.date, end: dt.date) -> pd.DataFrame:
 
 
 def get_ohlcv_daily(symbol: str, start: str | dt.date | None = None, end: str | dt.date | None = None, force_download: bool = False) -> pd.DataFrame:
+    _require_pandas()
     symbol = symbol.upper()
     start_date = (
         pd.to_datetime(start).date()

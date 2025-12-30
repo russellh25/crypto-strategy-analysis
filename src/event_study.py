@@ -5,7 +5,17 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Iterable, Tuple
 
-import pandas as pd
+try:
+    import pandas as pd
+    PANDAS_AVAILABLE = True
+except ImportError:  # pragma: no cover - optional dependency guard
+    PANDAS_AVAILABLE = False
+
+    class _PandasStub:  # pragma: no cover - typing aid
+        DataFrame = object
+        Series = object
+
+    pd = _PandasStub()
 
 
 @dataclass
@@ -20,6 +30,8 @@ class EventResult:
 
 
 def _compute_log_returns(df: pd.DataFrame) -> pd.Series:
+    if not PANDAS_AVAILABLE:
+        raise RuntimeError("pandas is required to compute event windows.")
     df = df.sort_values("date").drop_duplicates("date")
     closes = df["close"].astype(float)
     returns = (closes / closes.shift(1)).apply(lambda x: math.log(x) if pd.notnull(x) else None)
@@ -49,6 +61,8 @@ def compute_event_windows(
     window: Tuple[int, int] = (-10, 10),
     market_symbol: str = "BTC",
 ) -> Dict[int, EventResult]:
+    if not PANDAS_AVAILABLE:
+        raise RuntimeError("pandas is required to compute event windows.")
     results: Dict[int, EventResult] = {}
     log_returns = {sym: _compute_log_returns(df) for sym, df in prices.items()}
     date_arrays = {sym: df["date"].to_numpy() for sym, df in prices.items()}
@@ -87,6 +101,8 @@ def compute_event_windows(
 
 
 def summarize_car(results: Iterable[EventResult]) -> pd.DataFrame:
+    if not PANDAS_AVAILABLE:
+        raise RuntimeError("pandas is required to summarize CAR.")
     records = []
     for res in results:
         for offset, val in res.car.items():
@@ -114,6 +130,8 @@ def backtest_event_strategy(
     entry_offset: int = -1,
     volatility_widening: bool = False,
 ) -> pd.DataFrame:
+    if not PANDAS_AVAILABLE:
+        raise RuntimeError("pandas is required to run the backtest.")
     trades = []
     per_asset_last_exit: Dict[str, pd.Timestamp] = {}
     cost_map = {"BTC": 0.0012, "ETH": 0.0012, "XRP": 0.003}
@@ -168,6 +186,8 @@ def backtest_event_strategy(
 
 
 def trade_stats(trades: pd.DataFrame) -> Dict[str, float]:
+    if not PANDAS_AVAILABLE:
+        return {"count": 0}
     if trades.empty:
         return {"count": 0}
     net = trades["net_return"].astype(float)

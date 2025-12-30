@@ -14,7 +14,8 @@ Event-study and simple backtest around major crypto ETF milestones using CoinMar
 - Events: Hard-coded CSV with 30 dates (spot BTC ETF launches on 2024-01-11, spot ETH ETF launches on 2024-07-23, futures ETFs, and XRP/ETP milestones).
 
 ## Setup
-1. Python 3.11+ with pandas installed (standard scientific stack).
+1. Python 3.11+ with pandas installed (standard scientific stack). If pandas is unavailable in the
+   runtime, the CLI exits gracefully and instructs you to install it or rely on cached CSVs.
 2. Set your CoinMarketCap API key (required for first download):
    ```bash
    export CMC_API_KEY="YOUR_KEY"
@@ -43,4 +44,5 @@ Open `notebooks/03_etf_event_study.ipynb` to inspect CAR tables and trade stats 
 ## Caveats
 - CMC free tier may rate-limit; the code backs off with retries and sleeps between yearly chunks. Provide caches for deterministic offline runs.
 - Event dates are fixed to public launch dates; adjust `data/etf_events.csv` if you want additional milestones or jurisdictions.
-- No external dependencies beyond pandas/requests.
+- No external dependencies beyond pandas; if pandas is missing, the scripts provide
+  a clear message instead of crashing.
