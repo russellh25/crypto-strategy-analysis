@@ -1,0 +1,5 @@
+event_date,asset,event_type,short_description,source_url
+2023-06-15,BTC,filing,BlackRock files for iShares Bitcoin Trust spot BTC ETF,https://www.reuters.com/markets/us/blackrock-files-bitcoin-etf-coinbase-provide-custody-2023-06-15/
+2023-08-29,BTC,major_signal,DC Circuit court rules SEC must review Grayscale spot bitcoin ETF application,https://www.reuters.com/markets/us/court-sides-with-grayscale-bitcoin-etf-case-versus-sec-2023-08-29/
+2024-01-10,BTC,approval,SEC approves multiple spot bitcoin ETFs in the United States,https://www.sec.gov/news/press-release/2024-4
+2024-01-11,BTC,launch,First U.S. spot bitcoin ETFs begin trading on exchanges,https://www.reuters.com/markets/us/spot-bitcoin-etf-fever-grows-debut-looms-2024-01-10/
