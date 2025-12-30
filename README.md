@@ -1,45 +1,46 @@
 # crypto-strategy-analysis
 
-This repository builds a reproducible crypto ETF milestone event-study and backtest focused on Bitcoin spot ETF events. The workflow uses publicly available TradingView market data and a hand-curated ETF milestone table with cited sources.
+Event-study and simple backtest around major crypto ETF milestones using CoinMarketCap daily OHLCV data. Caches are stored locally so reruns avoid hitting the API once populated.
 
 ## Deliverables
-- **Notebook:** `notebooks/crypto_etf_event_study_and_backtest.ipynb`
-- **Event table:** `data/etf_events.csv`
-- **Utility code:** `etf_analysis.py` (pandas-based helpers) and `run_analysis.py` (standard-library fallback for data download and metrics)
-- **Figures:** generated into `images/` after running the notebook or `run_analysis.py`
+- Notebook: `notebooks/03_etf_event_study.ipynb`
+- Event table: `data/etf_events.csv` (30 ETF/ETP milestones for BTC, ETH, XRP, and mixed BTC/ETH futures)
+- Analysis modules: `src/cmc_data.py` (CMC downloads + caching) and `src/event_study.py` (windows, CAR, backtest)
+- CLI runner: `run_analysis.py` (end-to-end pipeline)
+- Reports: `reports/` (CAR per event, summary CAR, trades, trade stats)
 
-## Data
-- **Prices:** daily OHLCV for BTC fetched from the TradingView history endpoint (`https://data.tradingview.com/history`). The download is triggered automatically by the notebook or by running `run_analysis.py` and cached to `data/btc_usd_daily.csv`. If the endpoint is blocked in your environment (e.g., HTTP 403), place a CSV at `data/btc_usd_daily.csv` with columns `date,open,high,low,close,volume` to run offline using the cache.
-- **ETF events:** manually curated, cited milestones stored in `data/etf_events.csv`.
+## Data sources
+- Prices: CoinMarketCap `/v2/cryptocurrency/ohlcv/historical` (daily, USD). Cached to `data/prices_<symbol>_daily.csv`.
+- Events: Hard-coded CSV with 30 dates (spot BTC ETF launches on 2024-01-11, spot ETH ETF launches on 2024-07-23, futures ETFs, and XRP/ETP milestones).
 
-| event_date | asset | event_type | short_description | source |
-| --- | --- | --- | --- | --- |
-| 2023-06-15 | BTC | filing | BlackRock files for iShares Bitcoin Trust spot BTC ETF | [Reuters](https://www.reuters.com/markets/us/blackrock-files-bitcoin-etf-coinbase-provide-custody-2023-06-15/) |
-| 2023-08-29 | BTC | major_signal | DC Circuit court rules SEC must review Grayscale spot bitcoin ETF application | [Reuters](https://www.reuters.com/markets/us/court-sides-with-grayscale-bitcoin-etf-case-versus-sec-2023-08-29/) |
-| 2024-01-10 | BTC | approval | SEC approves multiple spot bitcoin ETFs in the United States | [SEC Press Release](https://www.sec.gov/news/press-release/2024-4) |
-| 2024-01-11 | BTC | launch | First U.S. spot bitcoin ETFs begin trading on exchanges | [Reuters](https://www.reuters.com/markets/us/spot-bitcoin-etf-fever-grows-debut-looms-2024-01-10/) |
+## Setup
+1. Python 3.11+ with pandas installed (standard scientific stack).
+2. Set your CoinMarketCap API key (required for first download):
+   ```bash
+   export CMC_API_KEY="YOUR_KEY"
+   # or create a local .env (not tracked)
+   echo "CMC_API_KEY=YOUR_KEY" > .env
+   ```
+   The pipeline will fall back to cached CSVs in `data/` if the key is missing but data already exists.
 
-## Methodology
-1. **Event study**
-   - Align each milestone date to the next available trading day in the BTC series.
-   - Compute returns over windows `[-30, -7, -1, 0, +1, +7, +30]` relative to the event close, plus cumulative returns over `[-30, +30]` and realized volatility (annualized log-return standard deviation) for `[-30, -1]` vs. `[+1, +30]`.
-   - Plot price with event markers, cumulative-return paths, and drawdowns per event.
-   - Aggregate mean/median window returns and run simple t-test and Mann–Whitney U approximations to compare pre/post windows.
+## Running the pipeline
+```bash
+python run_analysis.py
+```
+This will:
+- Download BTC/ETH/XRP (plus BTC as proxy for MIX) via CMC with polite rate limiting and retries.
+- Compute log-return windows and CAR for offsets -10..+10 versus BTC as market baseline for non-BTC assets.
+- Run a simple pre-event entry/backtest (enter t=-1, exit t=+1, configurable) with transaction costs (BTC/ETH 12 bps round-trip, XRP 30 bps; optional 1.5x widening on event day).
+- Save reports to `reports/`.
 
-2. **Backtests**
-   - **S1 (event momentum):** enter at event close, hold for `H ∈ {7, 30}` days, exit at close. Overlapping events keep the higher-priority type (approval > launch > major signal > filing). Transaction cost: 10 bps per side.
-   - **S2 (rumor/sell-the-news):** enter 7 trading days before approval/launch events and exit on the event close. Same cost assumptions.
-   - Performance metrics: CAGR, annualized volatility, Sharpe (mean/stdev * √252), max drawdown, hit rate, average trade return, trade count, and equity/drawdown curves.
+## Notebook workflow
+Open `notebooks/03_etf_event_study.ipynb` to inspect CAR tables and trade stats interactively. The notebook mirrors the CLI flow and uses cached prices if available.
 
-## How to reproduce
-1. Ensure Python 3.11+ with `numpy`, `pandas`, and `matplotlib` available.
-2. With network access to TradingView:
-   - Run `python run_analysis.py` for a standard-library-only end-to-end pull of data, statistics, and SVG equity/price plots.
-   - Or open and execute `notebooks/crypto_etf_event_study_and_backtest.ipynb` for the pandas/matplotlib workflow and richer visualizations.
-3. Outputs are cached to `data/` and `images/` for re-use.
+## GitHub/CI hygiene
+- API keys are never committed. Use `.env` locally and GitHub Actions secrets (`CMC_API_KEY`) in CI.
+- `.env` is already ignored via `.gitignore`; `.env.example` documents the required variable.
 
 ## Caveats
-- Internet access is required to pull price history from TradingView; offline runs will fail to refresh data.
-- This codebase does not install dependencies automatically. If `numpy`/`pandas`/`matplotlib` are missing, install them or rely on the `run_analysis.py` fallback (which still needs network access).
-- Statistical tests use normal approximations (no SciPy dependency). Results are indicative rather than definitive for small samples.
-- Event timestamps use UTC news/report dates; intraday market reactions and jurisdictional time differences are not captured.
+- CMC free tier may rate-limit; the code backs off with retries and sleeps between yearly chunks. Provide caches for deterministic offline runs.
+- Event dates are fixed to public launch dates; adjust `data/etf_events.csv` if you want additional milestones or jurisdictions.
+- No external dependencies beyond pandas/requests.
