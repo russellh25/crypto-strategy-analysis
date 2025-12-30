@@ -4,9 +4,9 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 import urllib.request
 
 # Constants
@@ -23,31 +23,44 @@ def _download_json(url: str) -> dict:
         return json.loads(response.read().decode())
 
 
-def download_ohlc(coin_id: str, vs_currency: str = "usd") -> pd.DataFrame:
-    url = (
-        f"https://api.coingecko.com/api/v3/coins/{coin_id}/ohlc?vs_currency={vs_currency}&days=max"
-    )
-    raw = _download_json(url)
-    ohlc = pd.DataFrame(raw, columns=["timestamp", "open", "high", "low", "close"])
-    ohlc["date"] = pd.to_datetime(ohlc["timestamp"], unit="ms").dt.date
-    daily = (
-        ohlc.groupby("date")[["open", "high", "low", "close"]]
-        .agg({"open": "first", "high": "max", "low": "min", "close": "last"})
-        .reset_index()
-    )
-    return daily
+def download_tradingview_ohlcv(
+    symbol: str = "BITSTAMP:BTCUSD", resolution: str = "D", start: str = "2016-01-01"
+) -> pd.DataFrame:
+    """Fetch OHLCV data from the TradingView history endpoint.
 
+    TradingView returns payloads shaped like::
 
-def download_volumes(coin_id: str, vs_currency: str = "usd") -> pd.DataFrame:
+        {"s": "ok", "t": [...], "o": [...], "h": [...], "l": [...], "c": [...], "v": [...]}.
+
+    """
+
+    start_ts = int(pd.Timestamp(start).timestamp())
+    end_ts = int(pd.Timestamp(datetime.utcnow()).timestamp())
     url = (
-        f"https://api.coingecko.com/api/v3/coins/{coin_id}/market_chart"
-        f"?vs_currency={vs_currency}&days=max&interval=daily"
+        "https://data.tradingview.com/history"
+        f"?symbol={symbol}&resolution={resolution}&from={start_ts}&to={end_ts}"
     )
-    raw = _download_json(url)
-    volumes = pd.DataFrame(raw.get("total_volumes", []), columns=["timestamp", "volume"])
-    volumes["date"] = pd.to_datetime(volumes["timestamp"], unit="ms").dt.date
-    daily = volumes.groupby("date")["volume"].sum().reset_index()
-    return daily
+    payload = _download_json(url)
+    if payload.get("s") != "ok":
+        raise ValueError(f"TradingView history request failed with status: {payload.get('s')}")
+
+    length = len(payload.get("t", []))
+    volumes = payload.get("v") or [np.nan] * length
+    if len(volumes) < length:
+        volumes = list(volumes) + [np.nan] * (length - len(volumes))
+
+    df = pd.DataFrame(
+        {
+            "date": pd.to_datetime(payload["t"], unit="s"),
+            "open": payload.get("o", []),
+            "high": payload.get("h", []),
+            "low": payload.get("l", []),
+            "close": payload.get("c", []),
+            "volume": volumes,
+        }
+    )
+    df["date"] = df["date"].dt.normalize()
+    return df
 
 
 def load_price_history(cache_path: Path = Path("data/btc_usd_daily.csv")) -> pd.DataFrame:
@@ -55,10 +68,7 @@ def load_price_history(cache_path: Path = Path("data/btc_usd_daily.csv")) -> pd.
     if cache_path.exists():
         return pd.read_csv(cache_path, parse_dates=["date"])
 
-    ohlc = download_ohlc("bitcoin")
-    volume = download_volumes("bitcoin")
-    df = pd.merge(ohlc, volume, on="date", how="left")
-    df["date"] = pd.to_datetime(df["date"])
+    df = download_tradingview_ohlcv()
     df = df[df["date"] >= "2017-01-01"].sort_values("date").reset_index(drop=True)
     df.to_csv(cache_path, index=False)
     return df

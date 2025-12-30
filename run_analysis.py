@@ -2,10 +2,11 @@ import csv
 import json
 import math
 import statistics
+import time
+import urllib.request
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import List, Dict
-import urllib.request
+from typing import Dict, List
 
 WINDOW = 30
 
@@ -16,36 +17,41 @@ def fetch_json(url: str):
 
 
 def fetch_price_data() -> List[Dict]:
-    ohlc_url = "https://api.coingecko.com/api/v3/coins/bitcoin/ohlc?vs_currency=usd&days=max"
-    vol_url = "https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=max&interval=daily"
-    ohlc_raw = fetch_json(ohlc_url)
-    vol_raw = fetch_json(vol_url).get("total_volumes", [])
-    volume_by_date = {}
-    for ts, vol in vol_raw:
-        date = datetime.utcfromtimestamp(ts / 1000).date()
-        volume_by_date[date] = volume_by_date.get(date, 0) + vol
-    daily = {}
-    for ts, o, h, l, c in ohlc_raw:
-        date = datetime.utcfromtimestamp(ts / 1000).date()
-        if date not in daily:
-            daily[date] = {"open": o, "high": h, "low": l, "close": c}
-        else:
-            daily[date]["high"] = max(daily[date]["high"], h)
-            daily[date]["low"] = min(daily[date]["low"], l)
-            daily[date]["close"] = c
+    start = int(datetime(2016, 1, 1).timestamp())
+    end = int(time.time())
+    url = (
+        "https://data.tradingview.com/history"
+        f"?symbol=BITSTAMP:BTCUSD&resolution=D&from={start}&to={end}"
+    )
+    payload = fetch_json(url)
+    if payload.get("s") != "ok":
+        raise ValueError(f"TradingView history request failed with status: {payload.get('s')}")
+
     rows = []
-    for date in sorted(daily.keys()):
+    times = payload.get("t", [])
+    volumes = payload.get("v") or [0] * len(times)
+    if len(volumes) < len(times):
+        volumes = list(volumes) + [0] * (len(times) - len(volumes))
+
+    for ts, o, h, l, c, v in zip(
+        times,
+        payload.get("o", []),
+        payload.get("h", []),
+        payload.get("l", []),
+        payload.get("c", []),
+        volumes,
+    ):
+        date = datetime.utcfromtimestamp(ts).date()
         if date < datetime(2017, 1, 1).date():
             continue
-        info = daily[date]
         rows.append(
             {
                 "date": date,
-                "open": info["open"],
-                "high": info["high"],
-                "low": info["low"],
-                "close": info["close"],
-                "volume": volume_by_date.get(date, 0),
+                "open": o,
+                "high": h,
+                "low": l,
+                "close": c,
+                "volume": v,
             }
         )
     return rows
