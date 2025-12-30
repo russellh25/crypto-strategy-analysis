@@ -3,6 +3,7 @@ import json
 import math
 import statistics
 import time
+import urllib.error
 import urllib.request
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -12,18 +13,61 @@ WINDOW = 30
 
 
 def fetch_json(url: str):
-    with urllib.request.urlopen(url) as resp:  # nosec: B310 - trusted endpoint
-        return json.loads(resp.read().decode())
+    """Download JSON with headers and clearer errors for TradingView."""
+
+    headers = {
+        "Accept": "application/json",
+        "User-Agent": "crypto-etf-event-study/1.0 (+research; contact: research@example.com)",
+    }
+    request = urllib.request.Request(url, headers=headers)
+    try:
+        with urllib.request.urlopen(request) as resp:  # nosec: B310 - trusted endpoint
+            return json.loads(resp.read().decode())
+    except urllib.error.HTTPError as exc:  # pragma: no cover - network dependent
+        body = exc.read().decode(errors="ignore")[:500]
+        raise RuntimeError(
+            f"HTTP {exc.code} while requesting TradingView history. "
+            f"Response snippet: {body or 'no body'}"
+        ) from exc
 
 
-def fetch_price_data() -> List[Dict]:
+def _read_cached_prices(cache_path: Path) -> List[Dict]:
+    rows: List[Dict] = []
+    with cache_path.open() as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            rows.append(
+                {
+                    "date": datetime.fromisoformat(row["date"]).date(),
+                    "open": float(row["open"]),
+                    "high": float(row["high"]),
+                    "low": float(row["low"]),
+                    "close": float(row["close"]),
+                    "volume": float(row["volume"]),
+                }
+            )
+    return rows
+
+
+def fetch_price_data(cache_path: Path = Path("data/btc_usd_daily.csv")) -> List[Dict]:
+    cache_path.parent.mkdir(parents=True, exist_ok=True)
+    if cache_path.exists():
+        return _read_cached_prices(cache_path)
+
     start = int(datetime(2016, 1, 1).timestamp())
     end = int(time.time())
     url = (
         "https://data.tradingview.com/history"
         f"?symbol=BITSTAMP:BTCUSD&resolution=D&from={start}&to={end}"
     )
-    payload = fetch_json(url)
+    try:
+        payload = fetch_json(url)
+    except Exception as exc:  # pragma: no cover - network dependent
+        raise RuntimeError(
+            "TradingView download failed and no cached price file was found. "
+            f"Provide BTC daily OHLCV at {cache_path} (columns: date,open,high,low,close,volume)."
+        ) from exc
+
     if payload.get("s") != "ok":
         raise ValueError(f"TradingView history request failed with status: {payload.get('s')}")
 
@@ -54,6 +98,8 @@ def fetch_price_data() -> List[Dict]:
                 "volume": v,
             }
         )
+
+    save_price_csv(rows, cache_path)
     return rows
 
 

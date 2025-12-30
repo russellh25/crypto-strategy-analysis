@@ -7,6 +7,7 @@ from typing import Dict, List, Optional, Tuple
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import urllib.error
 import urllib.request
 
 # Constants
@@ -19,8 +20,22 @@ EVENT_TYPE_PRIORITY = {
 
 
 def _download_json(url: str) -> dict:
-    with urllib.request.urlopen(url) as response:  # nosec: B310 - trusted endpoint
-        return json.loads(response.read().decode())
+    """Download JSON with a polite User-Agent and clear error messages."""
+
+    headers = {
+        "Accept": "application/json",
+        "User-Agent": "crypto-etf-event-study/1.0 (+research; contact: research@example.com)",
+    }
+    request = urllib.request.Request(url, headers=headers)
+    try:
+        with urllib.request.urlopen(request) as response:  # nosec: B310 - trusted endpoint
+            return json.loads(response.read().decode())
+    except urllib.error.HTTPError as exc:  # pragma: no cover - network dependent
+        body = exc.read().decode(errors="ignore")[:500]
+        raise RuntimeError(
+            f"HTTP {exc.code} while requesting TradingView history. "
+            f"Response snippet: {body or 'no body'}"
+        ) from exc
 
 
 def download_tradingview_ohlcv(
@@ -68,7 +83,14 @@ def load_price_history(cache_path: Path = Path("data/btc_usd_daily.csv")) -> pd.
     if cache_path.exists():
         return pd.read_csv(cache_path, parse_dates=["date"])
 
-    df = download_tradingview_ohlcv()
+    try:
+        df = download_tradingview_ohlcv()
+    except Exception as exc:  # pragma: no cover - network dependent
+        raise RuntimeError(
+            "TradingView download failed and no cached prices were found. "
+            f"Place a BTC USD daily OHLCV CSV at {cache_path} with columns: "
+            "date,open,high,low,close,volume."
+        ) from exc
     df = df[df["date"] >= "2017-01-01"].sort_values("date").reset_index(drop=True)
     df.to_csv(cache_path, index=False)
     return df

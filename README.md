@@ -9,7 +9,7 @@ This repository builds a reproducible crypto ETF milestone event-study and backt
 - **Figures:** generated into `images/` after running the notebook or `run_analysis.py`
 
 ## Data
-- **Prices:** daily OHLCV for BTC fetched from the TradingView history endpoint (`https://data.tradingview.com/history`). The download is triggered automatically by the notebook or by running `run_analysis.py` and cached to `data/btc_usd_daily.csv`.
+- **Prices:** daily OHLCV for BTC fetched from the TradingView history endpoint (`https://data.tradingview.com/history`). The download is triggered automatically by the notebook or by running `run_analysis.py` and cached to `data/btc_usd_daily.csv`. If the endpoint is blocked in your environment (e.g., HTTP 403), place a CSV at `data/btc_usd_daily.csv` with columns `date,open,high,low,close,volume` to run offline using the cache.
 - **ETF events:** manually curated, cited milestones stored in `data/etf_events.csv`.
 
 | event_date | asset | event_type | short_description | source |
