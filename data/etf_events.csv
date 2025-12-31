@@ -1,0 +1,31 @@
+event_id,asset,etf_name,ticker,region,event_type,event_date,notes
+1,BTC,Grayscale Bitcoin Trust,GBTC,US,spot_btc_etf_trading_start,2024-01-11,Converted trust to spot ETF; large AUM
+2,BTC,iShares Bitcoin Trust,IBIT,US,spot_btc_etf_trading_start,2024-01-11,BlackRock spot BTC ETF
+3,BTC,Fidelity Wise Origin Bitcoin Fund,FBTC,US,spot_btc_etf_trading_start,2024-01-11,Fidelity spot BTC ETF
+4,BTC,ARK 21Shares Bitcoin ETF,ARKB,US,spot_btc_etf_trading_start,2024-01-11,ARK/21Shares spot BTC ETF
+5,BTC,Bitwise Bitcoin ETF,BITB,US,spot_btc_etf_trading_start,2024-01-11,Bitwise spot BTC ETF
+6,BTC,VanEck Bitcoin Trust,HODL,US,spot_btc_etf_trading_start,2024-01-11,VanEck spot BTC ETF
+7,BTC,WisdomTree Bitcoin Fund,BTCW,US,spot_btc_etf_trading_start,2024-01-11,WisdomTree spot BTC ETF
+8,BTC,Invesco Galaxy Bitcoin ETF,BTCO,US,spot_btc_etf_trading_start,2024-01-11,Invesco/Galaxy spot BTC ETF
+9,BTC,Franklin Bitcoin ETF,EZBC,US,spot_btc_etf_trading_start,2024-01-11,Franklin Templeton spot BTC ETF
+10,BTC,Valkyrie Bitcoin Fund,BRRR,US,spot_btc_etf_trading_start,2024-01-11,Valkyrie spot BTC ETF
+11,BTC,Hashdex Bitcoin ETF,DEFI,US,spot_btc_etf_trading_start,2024-01-11,Hashdex spot BTC ETF
+12,ETH,iShares Ethereum Trust,ETHA,US,spot_eth_etf_trading_start,2024-07-23,BlackRock spot ETH ETF
+13,ETH,Fidelity Ethereum Fund,FETH,US,spot_eth_etf_trading_start,2024-07-23,Fidelity spot ETH ETF
+14,ETH,Bitwise Ethereum ETF,ETHW,US,spot_eth_etf_trading_start,2024-07-23,Bitwise spot ETH ETF
+15,ETH,VanEck Ethereum ETF,ETHV,US,spot_eth_etf_trading_start,2024-07-23,VanEck spot ETH ETF
+16,ETH,Franklin Ethereum ETF,EZET,US,spot_eth_etf_trading_start,2024-07-23,Franklin Templeton spot ETH ETF
+17,ETH,Invesco Galaxy Ethereum ETF,QETH,US,spot_eth_etf_trading_start,2024-07-23,Invesco/Galaxy spot ETH ETF
+18,ETH,Grayscale Ethereum Trust,ETHE,US,spot_eth_etf_trading_start,2024-07-23,Converted trust to spot ETF
+19,ETH,Grayscale Ethereum Mini Trust,ETH,US,spot_eth_etf_trading_start,2024-07-23,Lower-fee mini trust
+20,BTC,ProShares Bitcoin Strategy ETF,BITO,US,btc_futures_etf_trading_start,2021-10-19,First US BTC futures ETF
+21,BTC,Valkyrie Bitcoin Strategy ETF,BTF,US,btc_futures_etf_trading_start,2021-10-22,Second US BTC futures ETF
+22,BTC,VanEck Bitcoin Strategy ETF,XBTF,US,btc_futures_etf_trading_start,2021-11-16,VanEck BTC futures ETF
+23,BTC,Volatility Shares 2x Bitcoin Strategy ETF,BITX,US,btc_levered_futures_etf_start,2023-06-27,2x daily BTC futures exposure
+24,BTC,Valkyrie Bitcoin Miners ETF,WGMI,US,crypto_equity_etf_start,2022-02-07,Bitcoin miners equity ETF
+25,ETH,VanEck Ethereum Strategy ETF,EFUT,US,eth_futures_etf_trading_start,2023-10-02,ETH futures exposure
+26,ETH,ProShares Ether ETF,EETH,US,eth_futures_etf_trading_start,2023-10-02,ETH futures exposure
+27,ETH,Bitwise Ethereum Strategy ETF,AETH,US,eth_futures_etf_trading_start,2023-10-02,ETH futures exposure
+28,MIX,Bitwise Bitcoin and Ether Equal Weight ETF,BTOP,US,btc_eth_futures_etf_start,2023-10-02,Equal-weight BTC/ETH futures
+29,XRP,Teucrium 2x Long Daily XRP ETF,XXRP,US,xrp_etf_trading_start,2025-04-08,First US XRP ETF (leveraged)
+30,BTC,iShares Bitcoin ETP (Europe),IB1T,EU,btc_etp_launch_europe,2025-03-25,BlackRock Europe bitcoin ETP launch
